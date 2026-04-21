@@ -191,12 +191,19 @@ Only include systems that are:
 Avoid placing the following here:
 
 ✘ Gameplay systems
+
 ✘ Triggers / interactions
+
 ✘ AI logic
+
 ✘ Inventory systems
+
 ✘ Combat systems
+
 ✘ UI flows
+
 ✘ Project-specific logic
+
 
 These belong in higher layers (Foundry or Game/App).
 
