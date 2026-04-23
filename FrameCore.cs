@@ -9,6 +9,7 @@ using UnityEngine;
 
 namespace FrameCoreU
 {
+    [DefaultExecutionOrder(-500)]
     public class FrameCore : MonoBehaviour
     {
         [Title("Cores")]
