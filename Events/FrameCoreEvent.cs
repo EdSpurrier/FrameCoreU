@@ -91,8 +91,8 @@ namespace FrameCoreU.Events
 
         public void Activate(float queueTime = 0f)
         {
-            //  IF TRUE => DEBOUNCE IS CURRENTLY ACTIVE
-            if (debounce.CheckDebounce())
+            // If debounce exists and is currently active, stop.
+            if (debounce != null && debounce.CheckDebounce())
             {
                 return;
             }
