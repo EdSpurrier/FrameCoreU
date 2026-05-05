@@ -136,7 +136,7 @@ namespace FrameCoreU.Pooling
         {
             if (obj == null)
             {
-                Debug.LogError("PoolCore [ERROR] >> Tried to create pooled object from a null prefab.");
+                Debug.LogError("PoolCore [ERROR] >> Tried to create pooled object from a null prefab. name:" + poolObject.prefab.name);
                 return;
             }
 

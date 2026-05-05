@@ -110,6 +110,11 @@ MonoBehaviour:
     objects: []
     lazyLoadTime: 0
     boosting: 0
+  - prefab: {fileID: 0}
+    amount: 50
+    objects: []
+    lazyLoadTime: 0
+    boosting: 0
   minimumPoolAmount: 5
   lazyLoadTime: 2
   poolTime: 0
