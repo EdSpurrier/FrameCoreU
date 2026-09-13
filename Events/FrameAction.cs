@@ -20,7 +20,7 @@ namespace FrameCoreU.Events
         
         public string ToggleLabel => ActionType;
         
-        public string DisplayName => string.IsNullOrEmpty(actionName) ? ActionType : actionName;
+        public string DisplayName => string.IsNullOrEmpty(actionName) ? ActionType : ActionType + " - " + actionName;
         
         public virtual void Reset()
         {
