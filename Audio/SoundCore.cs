@@ -155,9 +155,8 @@ namespace FrameCoreU.Audio
 
             UnregisterSoundPoint(soundPoint);
 
-            soundPoint.ResetSoundPoint();
-            soundPoint.transform.SetParent(transform);
-            soundPoint.gameObject.SetActive(false);
+            // Back into the pool for the next sound (SoundPoint resets itself via IPoolable.OnDespawned)
+            soundPoint.gameObject.Despawn();
         }
 
         public void DestroyAllSoundPoints()
