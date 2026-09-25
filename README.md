@@ -140,6 +140,17 @@ Object pooling system for efficient spawning.
 * Reuses instances instead of instantiating
 * Supports lazy loading / pool boosting
 
+```csharp
+GameObject egg = eggPrefab.SpawnObject(position, rotation); // take one from the pool
+egg.Despawn();      // give it back (or destroy it, if it didn't come from a pool)
+egg.Despawn(2f);    // ...after 2 seconds
+```
+
+* `PooledObject` — added automatically to every pooled instance; remembers which pool entry it goes back to. Despawning twice is ignored.
+* `IPoolable` — implement `OnSpawned()` / `OnDespawned()` on any component in a pooled prefab to reset it between uses.
+* `PoolStateReset` — add to a prefab root to snapshot its hierarchy (child parents, local transforms, active states, Rigidbody kinematic flags) and restore it on despawn. Makes prefabs that come apart (fractured debris, detached pieces) reusable.
+* `PoolLifetime` — despawns the object a set time after it's spawned (effects, debris).
+
 ---
 
 ### SoundCore

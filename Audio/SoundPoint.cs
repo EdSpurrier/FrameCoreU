@@ -1,9 +1,10 @@
-﻿using Sirenix.OdinInspector;
+﻿using FrameCoreU.Pooling;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace FrameCoreU.Audio
 {
-    public class SoundPoint : MonoBehaviour
+    public class SoundPoint : MonoBehaviour, IPoolable
     {
         [Title("Sound Point Data")]
         [ShowInInspector, ReadOnly]
@@ -60,6 +61,10 @@ namespace FrameCoreU.Audio
 
             soundPointData = null;
         }
+
+        public void OnSpawned() { }
+
+        public void OnDespawned() => ResetSoundPoint();
 
         public void Mute()
         {

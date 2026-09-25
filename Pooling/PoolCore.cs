@@ -48,35 +48,13 @@ namespace FrameCoreU.Pooling
 
         public void AddToPool(Transform prefab)
         {
-            bool found = false;
+            if (ObjectInPool(prefab))
+                return;
 
-            foreach (PoolObject poolObject in poolObjects)
-            {
-                if (prefab == poolObject.prefab)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                PoolObject poolObject = new PoolObject();
-                poolObject.prefab = prefab;
-                poolObjects.Add(poolObject);
-            }
+            poolObjects.Add(new PoolObject { prefab = prefab });
         }
 
-        public bool ObjectInPool(Transform prefab)
-        {
-            foreach (PoolObject poolObject in poolObjects)
-            {
-                if (prefab == poolObject.prefab)
-                    return true;
-            }
-
-            return false;
-        }
+        public bool ObjectInPool(Transform prefab) => FindEntry(prefab) != null;
 
         private void Awake()
         {
@@ -136,7 +114,7 @@ namespace FrameCoreU.Pooling
         {
             if (obj == null)
             {
-                Debug.LogError("PoolCore [ERROR] >> Tried to create pooled object from a null prefab. name:" + poolObject.prefab.name);
+                Debug.LogError("PoolCore [ERROR] >> Tried to create a pooled object from a null prefab (an empty entry in the pool list?).");
                 return;
             }
 
@@ -147,41 +125,108 @@ namespace FrameCoreU.Pooling
             newObj.SetParent(transform);
             newObj.gameObject.SetActive(false);
 
+            if (!newObj.TryGetComponent(out PooledObject pooled))
+                pooled = newObj.gameObject.AddComponent<PooledObject>();
+            pooled.Bind(this, poolObject);
+
             poolObject.objects.Add(newObj.gameObject);
         }
 
         public GameObject SpawnObject(Transform obj, Vector3 position, Quaternion rotation)
         {
-            foreach (PoolObject poolObject in poolObjects)
+            PoolObject poolObject = FindEntry(obj);
+            if (poolObject == null)
             {
-                if (poolObject.prefab != obj)
-                    continue;
-
-                if (poolObject.objects.Count < minimumPoolAmount)
-                {
-                    CreateSpawnableObject(poolObject.prefab, poolObject);
-                    poolObject.boosting = true;
-                }
-
-                if (poolObject.objects.Count == 0)
-                {
-                    Debug.LogError("PoolCore [ERROR] >> Pool exists but has no available objects: " + obj.name);
-                    return null;
-                }
-
-                GameObject spawnedObject = poolObject.objects[0];
-                poolObject.objects.RemoveAt(0);
-
-                spawnedObject.transform.SetParent(null);
-                spawnedObject.transform.position = position;
-                spawnedObject.transform.rotation = rotation;
-                spawnedObject.SetActive(true);
-
-                return spawnedObject;
+                Debug.LogError("PoolCore [ERROR] >> Prefab isn't in the pool - add it to the Pool's list: " + (obj != null ? obj.name : "null"));
+                return null;
             }
 
-            Debug.LogError("PoolCore [ERROR] >> No object found in pool: " + obj.name);
-            Debug.Break();
+            // Anything destroyed while sitting in the pool (e.g. by a scene script) can't be reused
+            poolObject.objects.RemoveAll(pooledObject => pooledObject == null);
+
+            if (poolObject.objects.Count < minimumPoolAmount)
+            {
+                CreateSpawnableObject(poolObject.prefab, poolObject);
+                poolObject.boosting = true;
+            }
+
+            if (poolObject.objects.Count == 0)
+            {
+                Debug.LogError("PoolCore [ERROR] >> Pool exists but has no available objects: " + obj.name);
+                return null;
+            }
+
+            // Take the most recently returned object first - it's the one most likely to still be warm
+            int last = poolObject.objects.Count - 1;
+            GameObject spawnedObject = poolObject.objects[last];
+            poolObject.objects.RemoveAt(last);
+
+            spawnedObject.transform.SetParent(null);
+            spawnedObject.transform.SetPositionAndRotation(position, rotation);
+
+            if (spawnedObject.TryGetComponent(out PooledObject pooled))
+                pooled.MarkSpawned();
+
+            spawnedObject.SetActive(true);
+            NotifyPoolables(spawnedObject, spawned: true);
+
+            return spawnedObject;
+        }
+
+        // Returns a spawned object to its pool entry. Objects that didn't come from a pool are destroyed instead,
+        // so this is always safe to call.
+        public void Despawn(GameObject obj)
+        {
+            if (obj == null)
+                return;
+
+            if (!obj.TryGetComponent(out PooledObject pooled) || pooled.Pool == null)
+            {
+                Destroy(obj);
+                return;
+            }
+
+            if (pooled.Pool != this)
+            {
+                pooled.Pool.Despawn(obj);
+                return;
+            }
+
+            // Already back in the pool - despawning twice would add it to the list twice
+            if (!pooled.IsSpawned)
+                return;
+
+            pooled.MarkDespawned();
+            NotifyPoolables(obj, spawned: false);
+
+            obj.SetActive(false);
+            obj.transform.SetParent(transform);
+            pooled.Entry.objects.Add(obj);
+        }
+
+        private readonly List<IPoolable> _poolables = new();
+
+        private void NotifyPoolables(GameObject obj, bool spawned)
+        {
+            obj.GetComponentsInChildren(true, _poolables);
+
+            foreach (IPoolable poolable in _poolables)
+            {
+                if (spawned) poolable.OnSpawned();
+                else poolable.OnDespawned();
+            }
+
+            _poolables.Clear();
+        }
+
+        private PoolObject FindEntry(Transform prefab)
+        {
+            foreach (PoolObject poolObject in poolObjects)
+            {
+                if (poolObject.prefab == prefab)
+                    return poolObject;
+            }
+
             return null;
         }
     }
