@@ -14,7 +14,8 @@ namespace FrameCoreU.Events
 
         public void ActivateTimedEvent(FrameCoreEvent frameCoreEvent)
         {
-            Debug.Log("Activated Timed Event >> " + frameCoreEvent.eventName);
+            if (FrameCoreEvent.ShouldLog(frameCoreEvent.Owner))
+                Debug.Log("Activated Timed Event >> " + frameCoreEvent.Describe(), frameCoreEvent.Owner);
             timedEvents.Add(frameCoreEvent);
             frameCoreEvent.active = true;
         }

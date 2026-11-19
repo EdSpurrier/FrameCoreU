@@ -1,5 +1,6 @@
 using Sirenix.OdinInspector;
 using Sirenix.Serialization;
+using System;
 using System.Collections.Generic;
 using FrameCoreU.Timing;
 using FrameCoreU.Unity;
@@ -59,6 +60,13 @@ namespace FrameCoreU.Events
         [FoldoutGroup("hideActionDetails/System")]
         public float processTime = 0f;
 
+        // The component this event belongs to. The editor fills it in (FrameCoreEventOwners: on save, on selecting the
+        // object, or FrameCoreU > Link Event Owners), and pooled/spawned copies keep it, pointing at their own copy.
+        // Logs pass it as their context, so clicking one in the Console selects the object. Unlinked events still work.
+        [SerializeField, HideInInspector] private UnityEngine.Object owner;
+
+        public UnityEngine.Object Owner => owner;
+
         public void ResetActions()
         {
             foreach (FrameAction action in actions)
@@ -72,12 +80,29 @@ namespace FrameCoreU.Events
         {
             DebugEvent();
 
-            triggerEvent.Invoke();
+            // A Unity Event or action that throws is logged against this event's object (click to select it), and the
+            // rest of the event still runs - one broken action no longer stops the ones after it
+            try
+            {
+                triggerEvent?.Invoke();
+            }
+            catch (Exception exception)
+            {
+                LogFailure("its Unity Event", exception);
+            }
 
             foreach (FrameAction action in actions)
             {
                 if (action == null) continue;
-                action.Execute();
+
+                try
+                {
+                    action.Execute(owner);
+                }
+                catch (Exception exception)
+                {
+                    LogFailure("action '" + action.DisplayName + "'", exception);
+                }
             }
 
             if (eventManager)
@@ -103,7 +128,16 @@ namespace FrameCoreU.Events
 
             if (processTime > 0f)
             {
-                Frame.Events.ActivateTimedEvent(this);
+                if (Frame.HasCore)
+                {
+                    Frame.Events.ActivateTimedEvent(this);
+                }
+                else
+                {
+                    // Nothing can count the delay down without FrameCore (e.g. while leaving Play mode)
+                    Debug.LogWarning("FrameCoreEvent >> " + Describe() + " has a " + processTime + "s delay but there's no FrameCore to time it - triggering now.", owner);
+                    TriggerEvent();
+                }
             }
             else
             {
@@ -133,10 +167,50 @@ namespace FrameCoreU.Events
 
         void DebugEvent()
         {
-            Debug.Log("FrameCoreEvent [" + Frame.Events.eventCoreTime + "] >> " + eventName + " - Triggered");
+            if (!ShouldLog(owner))
+                return;
+
+            // FrameCore can already be gone (leaving Play mode, or a scene without one): fall back to Unity's clock
+            float time = Frame.HasCore && Frame.Events != null ? Frame.Events.eventCoreTime : Time.time;
+            Debug.Log("FrameCoreEvent [" + time.ToString("0.00") + "] >> " + Describe() + " - Triggered", owner);
+        }
+
+        // Two Console entries, both selecting the owner when clicked: a one-line summary of what failed where, then the
+        // exception itself with its stack trace
+        private void LogFailure(string what, Exception exception)
+        {
+            Debug.LogError("FrameCoreEvent >> " + what + " in " + Describe() + " threw " + exception.GetType().Name + ": " + exception.Message, owner);
+            Debug.LogException(exception, owner);
+        }
+
+        // "Event Name on 'Object' (Component)" - or just the name if the event isn't linked to its owner yet
+        public string Describe()
+        {
+            if (owner is Component component && component != null)
+                return eventName + " on '" + component.name + "' (" + component.GetType().Name + ")";
+            if (owner != null)
+                return eventName + " on '" + owner.name + "'";
+            return eventName;
+        }
+
+        // FrameSettings' Event Logging: All (also when there's no FrameCore/FrameSettings), Linked Only, or Off
+        public static bool ShouldLog(UnityEngine.Object eventOwner)
+        {
+            FrameSettings settings = Frame.Settings;
+            EventLogging logging = settings != null ? settings.eventLogging : EventLogging.All;
+            return logging == EventLogging.All || (logging == EventLogging.LinkedOnly && eventOwner != null);
         }
         
 #if UNITY_EDITOR
+        // Editor only (FrameCoreEventOwners): returns true if it changed
+        public bool SetOwner(UnityEngine.Object value)
+        {
+            if (owner == value)
+                return false;
+            owner = value;
+            return true;
+        }
+
         public void ValidateData()
         {
             if (actions == null) return;
