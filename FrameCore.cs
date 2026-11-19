@@ -34,6 +34,7 @@ namespace FrameCoreU
         public SoundCore Sound => sound;
         public SceneCore Scenes => scenes;
         public Debouncer Debouncer => debouncer;
+        public FrameSettings Settings => settings;
 
         private bool systemError = false;
 

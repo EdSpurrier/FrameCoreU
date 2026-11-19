@@ -115,11 +115,16 @@ EventManager → FrameCoreEvent → FrameAction(s)
 
     * UnityEvents
     * FrameActions
+* Knows its owning component (set by the editor), so its Console logs select that object when clicked
+    * `FrameCoreU > Link Event Owners` links every prefab and open scene; saving and selecting keep it up to date
+    * `FrameSettings` Event Logging: All / Linked Only / Off
+* A Unity Event or action that throws is logged against the owning object, and the rest of the event still runs
 
 #### FrameAction
 
 * Abstract base for actions
 * Implemented externally (typically in Foundry)
+* `Owner` is the component whose event is running it; log with `Log` / `LogWarning` / `LogError` so Console entries select that object
 
 ---
 
