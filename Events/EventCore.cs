@@ -32,8 +32,13 @@ namespace FrameCoreU.Events
         
         public void UpdateTimedEvents()
         {
-            foreach (FrameCoreEvent timedEvent in timedEvents)
+            // By index, up to the count at the start: a timed event's actions can start other timed events (e.g. one
+            // rope's delayed On Cut snapping the others, whose On Cut is delayed too), which adds to this list while it's
+            // being walked. Those new ones start counting from the next frame; removals wait for ClearCompletedEvents.
+            int count = timedEvents.Count;
+            for (int i = 0; i < count; i++)
             {
+                FrameCoreEvent timedEvent = timedEvents[i];
                 if (timedEvent == null)
                 {
                     Debug.Log("Removing NULL Timed Event");
